@@ -28,7 +28,6 @@ type Tab=typeof TABS[number]['id'];
 function formatCount(v:number){return String(v).padStart(2,'0')}
 function localInputDate(value:string){return value?`${value.slice(0,10)}T${value.slice(11,16)}`:''}
 function isoColombia(value:string){return value?`${value}:00-05:00`:''}
-function shorten(value:string,max=38){return value.length>max?`${value.slice(0,max)}…`:value}
 function compactDate(value:string){if(!value)return 'Pendiente';try{return new Intl.DateTimeFormat('es-CO',{dateStyle:'medium',timeZone:'America/Bogota'}).format(new Date(value))}catch{return 'Pendiente'}}
 async function copyLink(text:string){try{await navigator.clipboard.writeText(text)}catch{window.prompt('Copia este enlace:',text)}}
 function Pill({children,tone='neutral'}:{children:ReactNode;tone?:'neutral'|'blue'|'green'|'gold'}){return <span className={`pill pill-${tone}`}>{children}</span>}
