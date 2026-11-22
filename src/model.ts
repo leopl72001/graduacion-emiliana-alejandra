@@ -11,6 +11,7 @@ export interface Photo { id:string; url:string; caption:string; }
 export type Galleries = Record<AlbumId,Photo[]>;
 export interface EventData {
   id:string;
+  owner_id?:string;
   title:string;
   message:string;
   date:string;

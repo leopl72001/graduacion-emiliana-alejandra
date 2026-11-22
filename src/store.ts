@@ -6,6 +6,10 @@ const key=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY||import.meta.env.VITE_SU
 export const cloudEnabled=Boolean(u&&key&&u.startsWith('https://')&&!u.includes('TU-PROYECTO'));
 export const supabase:SupabaseClient|null=cloudEnabled?createClient(u,key,{auth:{persistSession:true,autoRefreshToken:true}}):null;
 const LOCAL_KEY='emiliana-alejandra-demo-v1';
+/** One canonical shared event; using this ID prevents creating separate invitation lists. */
+export const SHARED_EVENT_ID='0c4ed031-16e9-44b6-a0ec-30721a9eeccf';
+export const settingsLink=()=>`${location.origin}${import.meta.env.BASE_URL}#/settings`;
+
 export function localData():Dashboard{
   try {const value=localStorage.getItem(LOCAL_KEY);if(value){const obj=JSON.parse(value) as Dashboard;return obj;}}catch{/* no local storage */}
   return {event:clone(DEFAULT_EVENT),groups:[
@@ -28,12 +32,11 @@ function check(error:{message:string}|null){if(error)throw new Error(error.messa
 export async function loadDashboard():Promise<Dashboard>{
   if(!supabase)return clone(localData());
   const owner=await user();if(!owner)throw new Error('No se pudo iniciar sesión de administración.');
-  const get=await supabase.from('sisters_events').select('*').eq('owner_id',owner.id).maybeSingle();check(get.error);
-  let event:EventData;
-  if(!get.data){
-    const values={...clone(DEFAULT_EVENT),owner_id:owner.id};delete (values as Partial<typeof values>).id;
-    const inserted=await supabase.from('sisters_events').insert(values).select('*').single();check(inserted.error);event=inserted.data as EventData;
-  }else event=get.data as EventData;
+  // Supabase RLS returns the same canonical event for its owner and paired devices.
+  // Never auto-create an empty event in a new browser.
+  const get=await supabase.from('sisters_events').select('*').eq('id',SHARED_EVENT_ID).maybeSingle();check(get.error);
+  if(!get.data)throw new Error('UNPAIRED_DEVICE');
+  const event=get.data as EventData;
   const [gg,gr]=await Promise.all([
     supabase.from('sisters_groups').select('*').eq('event_id',event.id).order('name'),
     supabase.from('sisters_guests').select('*').eq('event_id',event.id).order('created_at',{ascending:false})
@@ -41,6 +44,43 @@ export async function loadDashboard():Promise<Dashboard>{
   check(gg.error);check(gr.error);
   return {event,groups:(gg.data||[]) as Group[],guests:(gr.data||[]) as Guest[]};
 }
+
+/** Pairing is intentionally a short-lived, one-use edit credential. Keep it private. */
+export async function issuePairingLink():Promise<string>{
+  if(!supabase)throw new Error('Se necesita Supabase para sincronizar.');
+  await user();
+  const r=await supabase.rpc('sisters_issue_pairing');
+  check(r.error);
+  if(typeof r.data!=='string'||!/^[0-9a-f]{64}$/i.test(r.data))throw new Error('No se pudo crear el enlace temporal.');
+  return settingsLink()+'?pair='+r.data;
+}
+export async function claimPairingLink(value:string):Promise<void>{
+  if(!supabase)throw new Error('Se necesita Supabase para vincular.');
+  await user();
+  const code=value.trim().match(/(?:pair=)?([0-9a-f]{64})/i)?.[1];
+  if(!code)throw new Error('Pega el código completo o el enlace de vinculación.');
+  const r=await supabase.rpc('sisters_claim_pairing',{p_code:code});
+  check(r.error);
+  if(r.data!==SHARED_EVENT_ID)throw new Error('El dispositivo no está conectado al evento correcto.');
+}
+export interface LinkedDevice {user_id:string;created_at:string;}
+export async function getLinkedDevices():Promise<LinkedDevice[]>{
+  if(!supabase)return[];
+  await user();
+  const r=await supabase.rpc('sisters_list_editors');check(r.error);
+  return (Array.isArray(r.data)?r.data:[]) as LinkedDevice[];
+}
+export async function disconnectDevice(userId:string):Promise<void>{
+  if(!supabase)throw new Error('No hay conexión con la nube.');
+  await user();
+  const r=await supabase.rpc('sisters_remove_editor',{p_user_id:userId});
+  check(r.error);
+}
+export async function currentAdminId():Promise<string>{
+  if(!supabase)return 'demo';
+  return (await user())?.id||'';
+}
+
 export async function writeEvent(event:EventData,previous:Dashboard){
   if(!supabase){saveLocal({...previous,event});return;}
   const {id,...patch}=event;
@@ -49,7 +89,7 @@ export async function writeEvent(event:EventData,previous:Dashboard){
 export async function writeGroup(group:Group,previous:Dashboard){
   if(!supabase){saveLocal({...previous,groups:[group,...previous.groups.filter(x=>x.id!==group.id)]});return;}
   const owner=await user();if(!owner)throw new Error('Inicia sesión en Supabase.');
-  const r=await supabase.from('sisters_groups').upsert({...group,owner_id:owner.id});check(r.error);
+  const r=await supabase.from('sisters_groups').upsert({...group,owner_id:previous.event.owner_id||owner.id});check(r.error);
 }
 export async function deleteGroup(id:string,previous:Dashboard){
   if(!supabase){saveLocal({...previous,groups:previous.groups.filter(g=>g.id!==id),guests:previous.guests.map(g=>g.group_id===id?{...g,group_id:null}:g)});return;}
@@ -58,7 +98,7 @@ export async function deleteGroup(id:string,previous:Dashboard){
 export async function writeGuest(guest:Guest,previous:Dashboard){
   if(!supabase){saveLocal({...previous,guests:[guest,...previous.guests.filter(x=>x.id!==guest.id)]});return;}
   const owner=await user();if(!owner)throw new Error('Inicia sesión en Supabase.');
-  const r=await supabase.from('sisters_guests').upsert({...guest,owner_id:owner.id});check(r.error);
+  const r=await supabase.from('sisters_guests').upsert({...guest,owner_id:previous.event.owner_id||owner.id});check(r.error);
 }
 export async function deleteGuest(id:string,previous:Dashboard){
   if(!supabase){saveLocal({...previous,guests:previous.guests.filter(g=>g.id!==id)});return;}
