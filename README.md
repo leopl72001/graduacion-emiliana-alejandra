@@ -7,3 +7,7 @@ Invitación digital con panel de administración independiente, cuatro galerías
 - **Sitio:** https://leopl72001.github.io/graduacion-emiliana-alejandra/
 
 Aplicación React + Vite con Supabase y GitHub Pages. La información de este evento se almacena en tablas `sisters_*`, independientes de las del proyecto GradoPro.
+
+## Publicación
+
+GitHub Pages configurado mediante GitHub Actions. La aplicación se publica desde `main` con el flujo `.github/workflows/deploy.yml`.
