@@ -10,6 +10,7 @@ create table if not exists public.sisters_events (
   date text not null default '',
   venue text not null default 'Por confirmar',
   address text not null default '',
+  arrival_note text not null default '',
   maps_url text not null default '',
   rsvp_deadline text not null default '',
   galleries jsonb not null default '{"juntas":[],"emiliana":[],"alejandra":[],"familia":[]}'::jsonb,
@@ -156,3 +157,5 @@ with check(bucket_id='sisters-assets' and (storage.foldername(name))[1]=(select 
 drop policy if exists sisters_storage_delete on storage.objects;
 create policy sisters_storage_delete on storage.objects for delete to authenticated
 using(bucket_id='sisters-assets' and (storage.foldername(name))[1]=(select auth.uid())::text);
+-- Para instalaciones existentes:
+ALTER TABLE public.sisters_events ADD COLUMN IF NOT EXISTS arrival_note text NOT NULL DEFAULT '';

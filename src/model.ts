@@ -16,6 +16,7 @@ export interface EventData {
   date:string;
   venue:string;
   address:string;
+  arrival_note:string;
   maps_url:string;
   rsvp_deadline:string;
   galleries:Galleries;
@@ -38,7 +39,8 @@ export const token=()=>crypto.randomUUID().replaceAll('-','')+crypto.randomUUID(
 export const DEFAULT_EVENT:EventData={
   id:'local-event',title:'Dos sueños, una celebración',
   message:'De la mano de quienes nos han acompañado, celebramos dos metas que marcan nuevos comienzos.',
-  date:'',venue:'Por confirmar',address:'',maps_url:'',rsvp_deadline:'',
+  date:'2026-12-05T20:00:00-05:00',venue:'Salón de eventos del edificio residencial',address:'Calle 66 #50-50',
+  arrival_note:'Te esperamos puntualmente a las 8:00 p. m. El salón de eventos se encuentra en un edificio residencial y tiene un horario de cierre que debemos respetar. ¡Gracias por ayudarnos a disfrutar cada momento juntos!',maps_url:'',rsvp_deadline:'',
   galleries:{juntas:[],emiliana:[],alejandra:[],familia:[]},
   music_general_url:'',music_general_start:0,music_special_url:'',music_special_start:0,
   closing:'Nos hará muy felices compartir este día contigo.'
