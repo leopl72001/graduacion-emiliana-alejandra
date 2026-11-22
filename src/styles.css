@@ -22,18 +22,194 @@
 @media(max-width:680px){.admin-top{height:62px;padding:0 17px}.top-tag,.top-actions .ghost{display:none}.workspace{padding:17px 14px 50px}.view-heading{align-items:flex-start;flex-direction:column}.view-heading h1{font-size:31px}.view-heading>div:last-child{width:100%}.view-heading .btn{width:100%}.hero-dashboard{padding:30px 23px;min-height:310px}.hero-copy h1{font-size:33px}.metrics{gap:9px}.metric-card{min-height:125px;padding:16px}.metric-top{font-size:10px}.metric-card>strong{font-size:28px}.panel-card{padding:17px}.table-panel{padding:0}.group-grid{grid-template-columns:1fr}.group-add{min-height:130px}.music-head h3{font-size:20px}.music-art{width:64px;height:70px}.music-controls{grid-template-columns:1fr}.music-buttons{flex-direction:column}.help-band{align-items:flex-start;flex-wrap:wrap}.help-band .btn{width:100%}.gallery-toolbar{flex-wrap:wrap}.modal{padding:21px}.form-grid{grid-template-columns:1fr}.modal-actions .btn{flex:1}.invite-toolbar>*{width:100%}.search-wrap{min-width:0}.intro-topline,.section-kicker{font-size:9px;letter-spacing:.2em}.invite-intro h1{font-size:36px}.envelope-stage{height:300px}.intro-footer{max-width:280px}.invite-cover{padding:126px 17px 65px}.invite-cover>p{font-size:13px}.cover-grades{gap:13px}.cover-grades strong{font-size:11px}.cover-grades span{font-size:10px}.sisters-story{padding:85px 17px}.story-twins{flex-direction:column;gap:18px}.story-twins article{width:100%}.twin-divider{display:none}.memory-album{padding:85px 16px}.memory-gallery{gap:15px}.memory-photo{width:calc(50% - 8px);max-width:242px}.detail-boxes{flex-direction:column;align-items:center}.detail-boxes article{width:100%;max-width:420px}.count-row{gap:5px}.count-row>div{width:24%;padding:15px 6px}.count-row strong{font-size:30px}.count-row small{font-size:10px}.invite-rsvp{padding:90px 15px}.rsvp-form{padding:25px 18px}.rsvp-choice{flex-direction:column}}
 @media(max-width:395px){.hero-actions{flex-direction:column}.memory-gallery{gap:9px}.cover-grades{gap:8px}.rsvp-form{padding:19px}.env-seal{height:52px;width:52px;font-size:21px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}.invite-opening .env-letter{animation:letter-rise 3s ease-out .3s both!important}.invite-opening .env-flap{transform:rotateX(-175deg)}.memory-photo{transform:none!important}}
-/* Aviso importante de puntualidad: próximo a la dirección y a la cuenta regresiva */
-.arrival-note{
-  display:flex;align-items:flex-start;gap:17px;max-width:770px;margin:-38px auto 50px;
-  border:1px solid rgba(226,188,123,.65);border-radius:18px;padding:22px 28px;
-  background:linear-gradient(140deg,rgba(249,232,197,.16),rgba(243,219,177,.065));
-  box-shadow:0 12px 36px rgba(10,18,43,.18);text-align:left;
-  animation:arrival-note-float 7s ease-in-out infinite alternate;
+
+
+/* Emiliana & Alejandra | 3D cinematic envelope, gilded diploma universe and celebration */
+/* Decorative overlays never block audio, buttons, RSVP, or scrolling. */
+.invite-intro {isolation:isolate; overflow:hidden}
+.invite-intro .intro-topline,.invite-intro h1,.invite-intro>p,.intro-open,.intro-footer{position:relative;z-index:5}
+.envelope-stage{z-index:7}
+.envelope-click{isolation:isolate}
+.opening-flash-ring{
+  position:absolute;z-index:6;pointer-events:none;left:50%;top:50%;
+  width:45%;aspect-ratio:1;border-radius:50%;border:2px solid #fff3bf;
+  box-shadow:0 0 30px #f5dfb978,inset 0 0 24px #fbe6af66;
+  opacity:0;transform:translate(-50%,-50%) scale(.2)
 }
-.arrival-note-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;flex:none;
-  color:#e7c487;border:1px solid rgba(231,196,135,.6);background:rgba(255,255,255,.07)}
-.arrival-note strong{display:block;font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(22px,3vw,29px);color:#f5e0b6;margin-bottom:7px}
-.arrival-note p{margin:0;color:#dce8ff;font-size:clamp(13px,1.5vw,16px);line-height:1.6}
-@keyframes arrival-note-float{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,-6px,0)}}
-@media(max-width:700px){.arrival-note{margin:-20px 18px 42px;padding:18px 15px;gap:12px}.arrival-note-icon{width:39px;height:39px}}
-@media(prefers-reduced-motion:reduce){.arrival-note{animation:none}}
+.invite-opening .opening-flash-ring{animation:opening-ring-wave 1.8s ease-out .25s both}
+@keyframes opening-ring-wave{
+  0%{opacity:0;transform:translate(-50%,-50%) rotateX(60deg) scale(.16)}
+  18%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-50%) rotateX(5deg) scale(4.5)}
+}
+.opening-gold-dust{position:absolute;inset:0;z-index:11;pointer-events:none;overflow:visible}
+.opening-gold-dust>span{
+  position:absolute;left:50%;top:52%;width:var(--ray-size);height:var(--ray-size);
+  border-radius:50%;background:radial-gradient(circle,#fffefa 8%,#f8d892 44%,#bd8427 100%);
+  box-shadow:0 0 9px #ffe2a0,0 0 18px #ffd68099;
+  opacity:0;transform:rotate(var(--ray-angle)) translateX(0) scale(.35)
+}
+.opening-gold-dust>span:nth-child(4n){
+  clip-path:polygon(50% 0%,62% 37%,100% 50%,62% 63%,50% 100%,37% 63%,0% 50%,37% 37%);
+  width:calc(var(--ray-size) * 2);height:calc(var(--ray-size) * 2)
+}
+.invite-opening .opening-gold-dust>span{animation:opening-particle-flight 2.05s cubic-bezier(.16,.7,.14,1) var(--ray-delay) both}
+@keyframes opening-particle-flight{
+  0%{opacity:0;transform:rotate(var(--ray-angle)) translateX(0) translateZ(0) scale(.25)}
+  17%{opacity:1}
+  65%{opacity:.9}
+  100%{opacity:0;transform:rotate(var(--ray-angle)) translateX(var(--ray-travel)) translateZ(95px) scale(1.1)}
+}
+.intro-stars-burst>span{font-size:var(--star-size);color:#fff0c3;font-family:Georgia,serif}
+.invite-opening .intro-stars-burst>span{animation-duration:2.15s}
+.invite-opening .intro-glow{animation:opening-heartbeat 2.2s ease-out both}
+@keyframes opening-heartbeat{0%{opacity:.6;transform:scale(.8)}30%{opacity:1;transform:scale(1.9)}100%{opacity:.1;transform:scale(3)}}
+.invite-opening .env-flap{
+  filter:drop-shadow(0 0 19px #ffe6a2c0);
+}
+.invite-opening .env-letter{
+  box-shadow:0 0 25px #f8ddacb0,0 0 65px #d9e8ff66;
+}
+/* Rolled diploma: a small 3D folded parchment with a physical ribbon and gold seal */
+.diploma-universe{position:absolute;inset:0;z-index:1;pointer-events:none;overflow:hidden;perspective:1100px}
+.diploma-zone-intro{z-index:1}
+.diploma-orbit{
+  position:absolute;left:var(--dip-x);top:var(--dip-y);
+  width:75px;height:44px;transform-style:preserve-3d;opacity:.58;
+  animation:diploma-drift var(--dip-dur) ease-in-out var(--dip-delay) infinite alternate;
+  will-change:transform;
+}
+.diploma-scroll{
+  position:absolute;inset:0;display:block;
+  transform:rotate(var(--dip-angle)) rotateY(-23deg) rotateX(15deg);
+  transform-style:preserve-3d;filter:drop-shadow(0 6px 7px #0611426e);
+}
+.diploma-paper{
+  position:absolute;inset:7px 5px;
+  background:linear-gradient(180deg,#fff9e8 0%,#ead3a3 35%,#fff0d0 68%,#c39d67 100%);
+  border:1px solid #ffebc3;border-radius:8px 7px 8px 7px;
+  box-shadow:inset 0 -3px 4px #aa7d4c4a,inset 0 3px 5px #fff5dcf2,0 6px 13px #040e3899;
+  transform:translateZ(10px);
+}
+.diploma-paper::before,.diploma-paper::after{
+  content:'';position:absolute;top:-4px;bottom:-4px;width:12px;border-radius:60%;
+  background:linear-gradient(90deg,#916431,#fff4d9 42%,#d9b782 76%,#b08046);
+  box-shadow:2px 0 5px #45311a5c
+}
+.diploma-paper::before{left:-6px}
+.diploma-paper::after{right:-6px}
+.diploma-paper i{position:absolute;left:24%;right:24%;height:1px;background:#ab8455a9;border-radius:20px}
+.diploma-paper i:nth-child(1){top:33%}
+.diploma-paper i:nth-child(2){top:49%}
+.diploma-paper i:nth-child(3){top:65%}
+.diploma-ribbon{
+  position:absolute;left:44%;top:9%;width:14%;height:82%;z-index:3;transform:translateZ(27px);
+  background:linear-gradient(90deg,#83511d,#ddb972,#f7d78f,#92601f);
+  box-shadow:0 1px 5px #33220b5e
+}
+.diploma-medallion{
+  position:absolute;top:32%;left:42%;width:17px;height:17px;border-radius:50%;z-index:5;
+  transform:translateZ(36px);display:grid;place-items:center;
+  background:radial-gradient(circle at 32% 25%,#fff4be,#bb843d 70%,#86521e);
+  border:1px solid #ffe8ac;color:#fff7d3;font:11px/1 Georgia,serif;
+  text-shadow:0 1px 2px #765024;box-shadow:0 1px 5px #0007
+}
+@keyframes diploma-drift{
+  0%{opacity:.25;transform:translate3d(-19px,23px,-90px) rotateX(-8deg) rotateY(-28deg) rotateZ(-9deg) scale(.78)}
+  45%{opacity:.66;transform:translate3d(12px,-19px,85px) rotateX(13deg) rotateY(20deg) rotateZ(7deg) scale(1.08)}
+  100%{opacity:.36;transform:translate3d(-3px,11px,-50px) rotateX(-12deg) rotateY(-17deg) rotateZ(-6deg) scale(.85)}
+}
+.diploma-zone-story .diploma-orbit{opacity:.35}
+.diploma-zone-story .diploma-scroll{filter:drop-shadow(0 7px 6px #30446c37)}
+.sisters-story{position:relative;overflow:hidden;isolation:isolate}
+.sisters-story>.section-kicker,.sisters-story>h2,.sisters-story>p,.sisters-story>.story-twins{position:relative;z-index:3}
+.story-twins article{perspective:900px}
+.story-twins article svg{animation:cap-orbit-3d 7s ease-in-out infinite alternate}
+@keyframes cap-orbit-3d{0%{transform:translate3d(0,0,8px) rotateY(-22deg) rotateZ(-9deg)}
+  100%{transform:translate3d(0,-9px,50px) rotateY(22deg) rotateZ(7deg)}}
+/* Celebration starts the instant the letter transforms into the public invitation. */
+.celebration-confetti{position:fixed;inset:0;z-index:120;pointer-events:none;overflow:hidden;perspective:1200px}
+.celebration-confetti>span{
+  position:absolute;left:var(--conf-x);top:-28px;opacity:0;
+  width:var(--conf-size);height:calc(var(--conf-size) * 1.8);
+  border-radius:1px;background:var(--conf-color);
+  box-shadow:0 1px 5px #f7d8a88e;backface-visibility:visible;
+  animation:celebration-rain var(--conf-dur) cubic-bezier(.22,.51,.35,.98) var(--conf-delay) 1 both;
+  will-change:transform;
+}
+.celebration-confetti>span:nth-child(5n){border-radius:50%;height:var(--conf-size)}
+.celebration-confetti>span:nth-child(9n){width:3px;height:22px;border-radius:50% 0 50% 0}
+@keyframes celebration-rain{
+  0%{opacity:0;transform:translate3d(0,-4vh,-200px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)}
+  9%{opacity:1}
+  44%{opacity:.94;transform:translate3d(calc(var(--conf-drift) * .5),45vh,90px) rotateX(320deg) rotateY(270deg) rotateZ(250deg)}
+  85%{opacity:.92}
+  100%{opacity:0;transform:translate3d(var(--conf-drift),112vh,-70px) rotateX(780deg) rotateY(760deg) rotateZ(var(--conf-rotation))}
+}
+.cover-reveal-flare{
+  position:absolute;z-index:-1;top:45%;left:50%;width:min(75vw,650px);
+  aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle,#ffecbb7c 0%,#bed1fc4d 20%,#d2ab6627 48%,transparent 72%);
+  filter:blur(17px);pointer-events:none;
+  transform:translate(-50%,-50%) scale(.2);
+  animation:cover-reveal-glow 2.6s ease-out both;
+}
+@keyframes cover-reveal-glow{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}
+  16%{opacity:.95}
+  100%{opacity:.12;transform:translate(-50%,-50%) scale(2.3)}
+}
+.invite-cover>.cover-caption,.invite-cover>.cover-crest,.invite-cover>h1,.invite-cover>.cover-grades,.invite-cover>p,.invite-cover>.guest-display,.invite-cover>.public-countdown,.invite-cover>.explore-link{
+  position:relative;z-index:3;
+}
+.invite-cover>.cover-crest{animation:cover-mark-reveal 1.3s cubic-bezier(.2,.8,.3,1) .15s both,crest-soft-float 7s ease-in-out 1.6s infinite alternate}
+@keyframes cover-mark-reveal{from{opacity:0;transform:translateY(30px) rotateY(-48deg) scale(.7)}to{opacity:1;transform:translateY(0) rotateY(0deg) scale(1)}}
+@keyframes crest-soft-float{from{transform:translateY(0) rotateY(-7deg)}to{transform:translateY(-8px) rotateY(7deg)}}
+.invite-cover>h1{animation:cover-text-arrival 1.65s cubic-bezier(.19,.74,.27,1) .28s both}
+.invite-cover>.guest-display{animation:cover-text-arrival 1.4s cubic-bezier(.19,.74,.27,1) .5s both}
+@keyframes cover-text-arrival{from{opacity:0;transform:translateY(45px) rotateX(13deg) scale(.93);filter:blur(8px)}
+  to{opacity:1;transform:translateY(0) rotateX(0deg) scale(1);filter:blur(0)}}
+/* Extra live clock in the cover; the lower countdown remains visible too. */
+.invite-cover>.public-countdown.is-compact{
+  margin:32px auto 4px;padding:14px 14px 13px;width:min(520px,95vw);
+  border:1px solid #e7c99264;border-radius:18px;
+  background:linear-gradient(135deg,#071c5eb8,#1b4da891);
+  box-shadow:0 12px 35px #00113c70,inset 0 0 20px #f2d19e0a;
+  backdrop-filter:blur(8px);
+}
+.is-compact .section-kicker{font-size:9px;color:#f5d69c}
+.is-compact h2{font-size:clamp(15px,2.3vw,21px);color:#fff3d5;margin:9px 0 14px}
+.is-compact .count-row{gap:7px}
+.is-compact .count-row>div{
+  width:25%;max-width:94px;min-width:0;padding:10px 4px;
+  border:1px solid #eed29f40;border-radius:10px;
+  background:#ffffff12;box-shadow:none;
+  animation:clock-tile-drift 5s ease-in-out infinite alternate;
+}
+.is-compact .count-row>div:nth-child(2){animation-delay:-1.25s}
+.is-compact .count-row>div:nth-child(3){animation-delay:-2.5s}
+.is-compact .count-row>div:nth-child(4){animation-delay:-3.75s}
+.is-compact .count-row strong{color:#ffe7b7;font:400 clamp(20px,3.1vw,32px) 'Playfair Display',serif}
+.is-compact .count-row small{font-size:9px;color:#d3e4ff;letter-spacing:0;margin-top:4px}
+@keyframes clock-tile-drift{0%{transform:translateY(1px) rotateX(-3deg)}100%{transform:translateY(-5px) rotateX(3deg)}}
+.invite-cover .explore-link{margin-top:26px}
+@media(max-width:740px){
+  .diploma-orbit{width:48px;height:30px}
+  .diploma-ribbon{width:16%}
+  .diploma-medallion{width:12px;height:12px;font-size:8px}
+  .diploma-zone-cover .diploma-orbit:nth-child(n+7),.diploma-zone-intro .diploma-orbit:nth-child(n+5){display:none}
+  .celebration-confetti>span:nth-child(n+68){display:none}
+  .opening-gold-dust>span:nth-child(n+40){display:none}
+  .invite-cover>.public-countdown.is-compact{margin-top:20px;padding:12px 7px}
+  .is-compact .count-row{gap:4px}
+  .is-compact .count-row>div{padding:8px 2px}
+  .is-compact .count-row strong{font-size:clamp(20px,5.6vw,28px)}
+  .is-compact .count-row small{font-size:8px}
+  .invite-cover{padding-top:112px}
+}
+@media(prefers-reduced-motion:reduce){
+  .diploma-orbit,.diploma-zone-story,.opening-gold-dust,.opening-flash-ring,
+  .celebration-confetti,.cover-reveal-flare{display:none!important}
+  .invite-cover>.cover-crest,.invite-cover>h1,.invite-cover>.guest-display,
+  .is-compact .count-row>div,.story-twins article svg{animation:none!important}
+}
