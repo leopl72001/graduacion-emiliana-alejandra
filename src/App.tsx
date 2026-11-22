@@ -1,8 +1,9 @@
 import {useCallback,useEffect,useRef,useState,type CSSProperties,type FormEvent,type ReactNode} from 'react';
+import {QRCodeSVG} from 'qrcode.react';
 import {
   ArrowDown,ArrowLeft,ArrowRight,CalendarDays,Camera,Check,CheckCheck,
   CheckCircle2,ChevronRight,Clock3,Copy,Download,Edit3,ExternalLink,GraduationCap,
-  Heart,ImagePlus,LayoutDashboard,Link2,Loader2,MapPin,Menu,MessageCircle,Music2,
+  Heart,ImagePlus,LayoutDashboard,Link2,Loader2,MapPin,Menu,MessageCircle,Music2,QrCode,
   Pause,Play,Plus,Save,Search,Send,ShieldCheck,Sparkles,Trash2,UploadCloud,
   UserRound,Users,Volume2,VolumeX,X
 } from 'lucide-react';
@@ -12,7 +13,9 @@ import {
 } from './model';
 import {
   cloudEnabled,deleteGroup,deleteGuest,linkFor,loadDashboard,newGroup,newGuest,
-  publicInvitation,sendRSVP,setSent,upload,whatsappFor,writeEvent,writeGroup,writeGuest,checkLink
+  publicInvitation,sendRSVP,setSent,upload,whatsappFor,writeEvent,writeGroup,writeGuest,checkLink,
+  issuePairingLink,claimPairingLink,getLinkedDevices,disconnectDevice,currentAdminId,settingsLink,
+  type LinkedDevice
 } from './store';
 
 const TABS=[
@@ -22,7 +25,8 @@ const TABS=[
   {id:'galerias',label:'Galerías de fotos',Icon:Camera},
   {id:'musica',label:'Música',Icon:Music2},
   {id:'evento',label:'El gran día',Icon:CalendarDays},
-  {id:'confirmaciones',label:'Confirmaciones',Icon:CheckCheck}
+  {id:'confirmaciones',label:'Confirmaciones',Icon:CheckCheck},
+  {id:'ajustes',label:'Ajustes y dispositivos',Icon:ShieldCheck}
 ] as const;
 type Tab=typeof TABS[number]['id'];
 function formatCount(v:number){return String(v).padStart(2,'0')}
@@ -75,7 +79,7 @@ function DashboardAdmin(){
   const [data,setData]=useState<Dashboard|null>(null);
   const [loading,setLoading]=useState(true);
   const [failure,setFailure]=useState('');
-  const [tab,setTab]=useState<Tab>('resumen');
+  const [tab,setTab]=useState<Tab>(location.hash.startsWith('#/settings')?'ajustes':'resumen');
   const [notice,setNotice]=useState('');
   const [working,setWorking]=useState(false);
   const [guestEdit,setGuestEdit]=useState<Guest|null>(null);
@@ -84,6 +88,12 @@ function DashboardAdmin(){
   const [menuOpen,setMenuOpen]=useState(false);
   const [search,setSearch]=useState('');
   const [filter,setFilter]=useState('todos');
+  const [confirmationFilter,setConfirmationFilter]=useState<RSVP|'todos'>('todos');
+  const [qrGuest,setQrGuest]=useState<Guest|null>(null);
+  const [pairLink,setPairLink]=useState('');
+  const [pairBusy,setPairBusy]=useState(false);
+  const [devices,setDevices]=useState<LinkedDevice[]>([]);
+  const [currentDeviceId,setCurrentDeviceId]=useState('');
   const [draftEvent,setDraftEvent]=useState<EventData>(clone(DEFAULT_EVENT));
   const [uploadBusy,setUploadBusy]=useState('');
   const [previewAudio,setPreviewAudio]=useState<TrackId|null>(null);
@@ -95,6 +105,52 @@ function DashboardAdmin(){
     finally{setLoading(false)}
   },[]);
   useEffect(()=>{void refresh()},[refresh]);
+  useEffect(()=>{
+    const update=()=>{if(location.hash.startsWith('#/settings'))setTab('ajustes')};
+    window.addEventListener('hashchange',update);
+    return()=>window.removeEventListener('hashchange',update);
+  },[]);
+  // Refresh lists when working on another computer. Never erase unsaved form edits.
+  useEffect(()=>{
+    if(!data||working||guestEdit||groupEdit||!['resumen','invitaciones','grupos','confirmaciones'].includes(tab))return;
+    const sync=()=>{if(document.visibilityState==='visible')void refresh()};
+    const id=window.setInterval(sync,15000);
+    window.addEventListener('focus',sync);
+    return()=>{window.clearInterval(id);window.removeEventListener('focus',sync)};
+  },[tab,working,guestEdit,groupEdit,refresh,Boolean(data)]);
+  useEffect(()=>{
+    if(tab!=='ajustes'||!data||!cloudEnabled)return;
+    let active=true;
+    void Promise.all([getLinkedDevices(),currentAdminId()]).then(([list,id])=>{
+      if(active){setDevices(list);setCurrentDeviceId(id)}
+    }).catch(e=>{if(active)setFailure((e as Error).message)});
+    return()=>{active=false};
+  },[tab,data?.event.id]);
+  const selectTab=(target:Tab)=>{
+    setTab(target);setMenuOpen(false);
+    if(target==='ajustes')history.replaceState(null,'',settingsLink());
+    else if(location.hash.startsWith('#/settings'))history.replaceState(null,'',`${location.pathname}${location.search}#/`);
+  };
+  const newPairLink=async()=>{
+    setPairBusy(true);
+    try{const link=await issuePairingLink();setPairLink(link);notify('Enlace temporal creado. Caduca en 10 minutos y solo funciona una vez.')}
+    catch(e){notify('No se pudo crear el enlace: '+(e as Error).message)}
+    finally{setPairBusy(false)}
+  };
+  const revokeDevice=async(id:string)=>{
+    if(!window.confirm('¿Revocar el acceso de este dispositivo?'))return;
+    try{await disconnectDevice(id);setDevices(await getLinkedDevices());notify('Acceso revocado')}
+    catch(e){notify('Error: '+(e as Error).message)}
+  };
+  const downloadGuestQR=(guest:Guest)=>{
+    const svg=document.querySelector('#guest-qr-svg svg');
+    if(!svg){notify('No se encontró el código QR');return}
+    const raw=new XMLSerializer().serializeToString(svg);
+    const blob=new Blob([raw],{type:'image/svg+xml;charset=utf-8'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='QR-'+guest.name.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'-').slice(0,50)+'.svg';
+    document.body.append(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
   const notify=(message:string)=>{setNotice(message);window.setTimeout(()=>setNotice(''),3500)};
   const perform=async(job:()=>Promise<void>,success:string)=>{
     setWorking(true);
@@ -179,6 +235,7 @@ function DashboardAdmin(){
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='invitados-emiliana-alejandra.csv';a.click();URL.revokeObjectURL(a.href);
   };
   if(loading)return <div className="loading-screen"><Loader2 className="spin" size={38}/><h2>Preparando nuestro estudio de invitaciones…</h2></div>;
+  if(!data&&failure==='UNPAIRED_DEVICE')return <DevicePairingGateway onConnected={()=>{setLoading(true);void refresh()}}/>;
   if(!data)return <div className="loading-screen"><ShieldCheck size={44}/><h2>No pudimos conectar el panel</h2><p>{failure||'Revisa tu configuración de Supabase.'}</p><button className="btn primary" onClick={()=>{setLoading(true);void refresh()}}>Reintentar</button><p><small>Si estás usando Supabase: activa Anonymous Sign-Ins y ejecuta supabase/schema.sql.</small></p></div>;
   if(preview)return <PublicInvitation data={{event:data.event,guest:{...newGuest(data.event.id),name:'Invitado de muestra',seats:2},group_name:'',track:'general'}} demo onBack={()=>setPreview(false)}/>;
   const guests=data.guests;
@@ -188,7 +245,7 @@ function DashboardAdmin(){
   const quota=guests.reduce((n,g)=>n+g.seats,0);
   const filtered=guests.filter(g=>{
     const text=`${g.name} ${data.groups.find(x=>x.id===g.group_id)?.name||''}`.toLowerCase();
-    return text.includes(search.toLowerCase()) && (filter==='todos'||(filter==='no_enviadas'&&!g.sent)||(filter==='enviadas'&&g.sent)||(filter==='confirmadas'&&g.status==='confirmada'));
+    return text.includes(search.toLowerCase()) && (filter==='todos'||(filter==='no_enviadas'&&!g.sent)||(filter==='enviadas'&&g.sent)||(filter==='confirmadas'&&g.status==='confirmada')||(filter==='sin_respuesta'&&g.status==='pendiente')||(filter==='no_asistiran'&&g.status==='no_asistira'));
   });
   const openGuest=(groupId:string|null=null)=>setGuestEdit(newGuest(data.event.id,groupId));
   const panelMusic=(track:TrackId)=>{
@@ -207,11 +264,11 @@ function DashboardAdmin(){
     <aside className={`sidebar ${menuOpen?'expanded':''}`}>
       <div className="side-brand"><div className="brand-mark">EA<span>✦</span></div><div><strong>CELEBRAR</strong><small>EMILIANA & ALEJANDRA</small></div></div>
       <div className="nav-label">MI ESTUDIO</div>
-      <nav>{TABS.map(x=><button key={x.id} className={`nav-link ${tab===x.id?'active':''}`} onClick={()=>{setTab(x.id);setMenuOpen(false)}}><x.Icon size={19}/>{x.label}{x.id==='invitaciones'&&waiting>0&&<i>{waiting}</i>}</button>)}</nav>
+      <nav>{TABS.map(x=><button key={x.id} className={`nav-link ${tab===x.id?'active':''}`} onClick={()=>selectTab(x.id)}><x.Icon size={19}/>{x.label}{x.id==='invitaciones'&&waiting>0&&<i>{waiting}</i>}</button>)}</nav>
       <div className="sidebar-bottom"><div className="side-message"><Sparkles size={19}/><strong>Una celebración. Dos grandes sueños.</strong><p>Emiliana · 5.º & Alejandra · 11.º</p></div><span className="connection"><span className={`connection-dot ${cloudEnabled?'on':''}`}/>{cloudEnabled?'Conectado a Supabase':'Modo demostración local'}</span></div>
     </aside>
     <div className="admin-body">
-      <header className="admin-top"><div className="crumb"><button className="menu-trigger" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={21}/></button><span>CELEBRAR</span><ChevronRight size={14}/><strong>{TABS.find(x=>x.id===tab)?.label}</strong></div><div className="top-actions"><span className="top-tag"><Sparkles size={14}/> Doble graduación</span><button className="btn small ghost" onClick={()=>setPreview(true)}><ExternalLink size={16}/> Ver plantilla</button><div className="avatar">EA</div></div></header>
+      <header className="admin-top"><div className="crumb"><button className="menu-trigger" onClick={()=>setMenuOpen(!menuOpen)}><Menu size={21}/></button><span>CELEBRAR</span><ChevronRight size={14}/><strong>{TABS.find(x=>x.id===tab)?.label}</strong></div><div className="top-actions"><span className="top-tag"><Sparkles size={14}/> Doble graduación</span><button className="btn small ghost" onClick={()=>selectTab('ajustes')}><ShieldCheck size={16}/> Ajustes</button><button className="btn small ghost" onClick={()=>setPreview(true)}><ExternalLink size={16}/> Ver plantilla</button><div className="avatar">EA</div></div></header>
       <main className="workspace">
         {!cloudEnabled&&<div className="cloud-banner"><ShieldCheck size={18}/><div><strong>Modo demostración: los datos se guardan en este navegador.</strong> Para compartir enlaces reales, guardar fotos y música en la nube, configura Supabase y las variables del repositorio.</div><a href="https://supabase.com/dashboard/projects" target="_blank" rel="noreferrer">Abrir Supabase <ExternalLink size={13}/></a></div>}
         {tab==='resumen'&&<>
@@ -222,9 +279,9 @@ function DashboardAdmin(){
         </>}
         {tab==='invitaciones'&&<>
           <Heading eyebrow="CADA PERSONA IMPORTA" title="Invitaciones personalizadas" desc="Registra invitados, asigna cupos y grupos, y marca cuándo hayas enviado cada invitación." action={<button className="btn primary" onClick={()=>openGuest()}><Plus size={17}/> Nueva invitación</button>}/>
-          <div className="invite-toolbar"><div className="search-wrap"><Search size={18}/><input placeholder="Buscar invitado o grupo" value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filtrar estado" value={filter} onChange={e=>setFilter(e.target.value)}><option value="todos">Todos los invitados</option><option value="no_enviadas">Pendientes de envío</option><option value="enviadas">Ya enviadas</option><option value="confirmadas">Confirmadas</option></select><button className="btn outline" onClick={exportCSV}><Download size={17}/> Exportar CSV</button></div>
+          <div className="invite-toolbar"><div className="search-wrap"><Search size={18}/><input placeholder="Buscar invitado o grupo" value={search} onChange={e=>setSearch(e.target.value)}/></div><select aria-label="Filtrar estado" value={filter} onChange={e=>setFilter(e.target.value)}><option value="todos">Todos los invitados</option><option value="no_enviadas">Pendientes de envío</option><option value="enviadas">Ya enviadas</option><option value="confirmadas">Confirmaron</option><option value="sin_respuesta">No han confirmado</option><option value="no_asistiran">No asistirán</option></select><button className="btn outline" onClick={exportCSV}><Download size={17}/> Exportar CSV</button></div>
           <div className="quick-filters"><Pill tone="blue">{guests.length} invitaciones</Pill><Pill tone="green">{sent} enviadas</Pill><Pill tone="gold">{waiting} sin enviar</Pill></div>
-          {filtered.length===0?<Card><Empty icon={<UserRound/>} heading={guests.length?'No hay coincidencias':'Todavía no hay invitados'} desc={guests.length?'Prueba con otro nombre o filtro.':'Crea la primera invitación y comienza a enviarla por WhatsApp.'} action={<button className="btn primary" onClick={()=>openGuest()}><Plus size={16}/> Crear invitación</button>}/></Card>:<Card className="table-panel"><div className="table-scroll"><table><thead><tr><th>Invitado</th><th>Grupo · Música</th><th>Cupos</th><th>Envío</th><th>Asistencia</th><th>Acciones</th></tr></thead><tbody>{filtered.map(g=><tr key={g.id}><td><div className="guest-name"><span className="mini-avatar">{g.name.slice(0,1).toUpperCase()}</span><div><strong>{g.name}</strong><small>{g.phone||'Sin WhatsApp registrado'}</small></div></div></td><td><div className="table-group"><strong>{data.groups.find(x=>x.id===g.group_id)?.name||'Sin grupo'}</strong><small><Music2 size={12}/> {getTrack(g,data.groups)==='especial'?'Especial':'General'}</small></div></td><td>{g.seats}</td><td><label className="sent-toggle"><input type="checkbox" checked={g.sent} disabled={working} onChange={()=>void toggleSent(g)}/><span className={g.sent?'sent-yes':''}>{g.sent?'Enviada':'Marcar enviada'}</span></label>{g.sent_at&&<small className="sent-date">{compactDate(g.sent_at)}</small>}</td><td><StatusPill status={g.status}/></td><td><div className="row-actions"><button title="Copiar enlace" onClick={()=>void copyLink(linkFor(g)).then(()=>notify('Enlace personalizado copiado'))}><Copy size={16}/></button><a href={whatsappFor(g)} target="_blank" rel="noreferrer" title="Enviar por WhatsApp"><MessageCircle size={17}/></a><a href={`#/invitacion/${g.share_token}`} target="_blank" rel="noreferrer" title="Abrir invitación"><ExternalLink size={16}/></a><button title="Editar invitación" onClick={()=>setGuestEdit(g)}><Edit3 size={16}/></button><button className="red" title="Eliminar invitación" onClick={()=>{if(window.confirm(`¿Eliminar la invitación de ${g.name}?`))void perform(()=>deleteGuest(g.id,data),'Invitación eliminada')}}><Trash2 size={16}/></button></div></td></tr>)}</tbody></table></div></Card>}
+          {filtered.length===0?<Card><Empty icon={<UserRound/>} heading={guests.length?'No hay coincidencias':'Todavía no hay invitados'} desc={guests.length?'Prueba con otro nombre o filtro.':'Crea la primera invitación y comienza a enviarla por WhatsApp.'} action={<button className="btn primary" onClick={()=>openGuest()}><Plus size={16}/> Crear invitación</button>}/></Card>:<Card className="table-panel"><div className="table-scroll"><table><thead><tr><th>Invitado</th><th>Grupo · Música</th><th>Cupos</th><th>Envío</th><th>Asistencia</th><th>Acciones</th></tr></thead><tbody>{filtered.map(g=><tr key={g.id}><td><div className="guest-name"><span className="mini-avatar">{g.name.slice(0,1).toUpperCase()}</span><div><strong>{g.name}</strong><small>{g.phone||'Sin WhatsApp registrado'}</small></div></div></td><td><div className="table-group"><strong>{data.groups.find(x=>x.id===g.group_id)?.name||'Sin grupo'}</strong><small><Music2 size={12}/> {getTrack(g,data.groups)==='especial'?'Especial':'General'}</small></div></td><td>{g.seats}</td><td><label className="sent-toggle"><input type="checkbox" checked={g.sent} disabled={working} onChange={()=>void toggleSent(g)}/><span className={g.sent?'sent-yes':''}>{g.sent?'Enviada':'Marcar enviada'}</span></label>{g.sent_at&&<small className="sent-date">{compactDate(g.sent_at)}</small>}</td><td><StatusPill status={g.status}/></td><td><div className="row-actions"><button title="Ver y descargar QR de esta invitación" onClick={()=>setQrGuest(g)}><QrCode size={17}/></button><button title="Copiar enlace" onClick={()=>void copyLink(linkFor(g)).then(()=>notify('Enlace personalizado copiado'))}><Copy size={16}/></button><a href={whatsappFor(g)} target="_blank" rel="noreferrer" title="Enviar por WhatsApp"><MessageCircle size={17}/></a><a href={`#/invitacion/${g.share_token}`} target="_blank" rel="noreferrer" title="Abrir invitación"><ExternalLink size={16}/></a><button title="Editar invitación" onClick={()=>setGuestEdit(g)}><Edit3 size={16}/></button><button className="red" title="Eliminar invitación" onClick={()=>{if(window.confirm(`¿Eliminar la invitación de ${g.name}?`))void perform(()=>deleteGuest(g.id,data),'Invitación eliminada')}}><Trash2 size={16}/></button></div></td></tr>)}</tbody></table></div></Card>}
         </>}
         {tab==='grupos'&&<>
           <Heading eyebrow="ORGANIZA A TU GENTE" title="Grupos de invitados" desc="Cada grupo usa la canción general o la especial. Los invitados sin grupo escuchan la general." action={<button className="btn primary" onClick={()=>setGroupEdit(newGroup(data.event.id))}><Plus size={17}/> Crear grupo</button>}/>
@@ -248,15 +305,82 @@ function DashboardAdmin(){
         {tab==='confirmaciones'&&<>
           <Heading eyebrow="LA ALEGRÍA DE CADA RESPUESTA" title="Confirmaciones de asistencia" desc="Consulta quienes asistirán, quienes no podrán venir y cuántos cupos han confirmado." action={<button className="btn outline" onClick={exportCSV}><Download size={16}/> Exportar CSV</button>}/>
           <div className="metrics"><Metric label="Confirmados" value={confirmed} icon={<CheckCircle2/>} foot="invitaciones"/><Metric label="Asistentes" value={guests.reduce((n,g)=>n+(g.status==='confirmada'?g.attending_count:0),0)} icon={<Users/>} foot="personas"/><Metric label="No asistirán" value={guests.filter(g=>g.status==='no_asistira').length} icon={<X/>} foot="respuestas"/><Metric label="Sin respuesta" value={guests.filter(g=>g.status==='pendiente').length} icon={<Clock3/>} foot="invitaciones"/></div>
-          <Card className="table-panel"><div className="table-scroll"><table><thead><tr><th>Invitado</th><th>Respuesta</th><th>Cupos</th><th>Asistentes</th><th>Mensaje</th></tr></thead><tbody>{guests.length===0?<tr><td colSpan={5} className="table-empty">Las confirmaciones aparecerán aquí.</td></tr>:guests.map(g=><tr key={g.id}><td><strong>{g.name}</strong></td><td><StatusPill status={g.status}/></td><td>{g.seats}</td><td>{g.attending_count}</td><td className="message-cell">{g.message||'—'}</td></tr>)}</tbody></table></div></Card>
+          <div className="confirmation-toolbar"><span>Filtrar respuestas</span><select value={confirmationFilter} onChange={e=>setConfirmationFilter(e.target.value as RSVP|'todos')}><option value="todos">Todas</option><option value="confirmada">Confirmaron</option><option value="pendiente">No han confirmado</option><option value="no_asistira">No asistirán</option></select></div><Card className="table-panel"><div className="table-scroll"><table><thead><tr><th>Invitado</th><th>Respuesta</th><th>Cupos</th><th>Asistentes</th><th>Mensaje</th></tr></thead><tbody>{guests.length===0?<tr><td colSpan={5} className="table-empty">Las confirmaciones aparecerán aquí.</td></tr>:guests.filter(g=>confirmationFilter==='todos'||g.status===confirmationFilter).map(g=><tr key={g.id}><td><strong>{g.name}</strong></td><td><StatusPill status={g.status}/></td><td>{g.seats}</td><td>{g.attending_count}</td><td className="message-cell">{g.message||'—'}</td></tr>)}</tbody></table></div></Card>
+        </>}
+
+        {tab==='ajustes'&&<>
+          <Heading eyebrow="TU PANEL, SIEMPRE SINCRONIZADO" title="Ajustes y dispositivos" desc="Accede desde diferentes computadores o celulares con Internet. Todos consultarán la misma lista de invitados y confirmaciones en Supabase." />
+          <div className="settings-grid">
+            <Card className="sync-settings-card">
+              <h3><Link2 size={21}/> Enlace permanente del panel</h3>
+              <p>Esta dirección se puede abrir desde cualquier navegador. En un dispositivo nuevo se vincula una única vez; no requiere crear una cuenta ni una contraseña.</p>
+              <div className="device-link-field"><input readOnly value={settingsLink()} aria-label="URL del panel"/><button className="btn outline" onClick={()=>void copyLink(settingsLink()).then(()=>notify('Enlace de ajustes copiado'))}><Copy size={16}/> Copiar</button></div>
+              <div className="sync-proof"><CheckCircle2 size={18}/><span>Datos centralizados · Supabase · Invitaciones, música, galerías, envíos y confirmaciones.</span></div>
+            </Card>
+            <Card className="sync-settings-card">
+              <h3><ShieldCheck size={21}/> Vincular otro dispositivo</h3>
+              <p>Desde este equipo, genera un enlace temporal y ábrelo en el otro celular o computador. También puedes escanear su QR. El enlace caduca en 10 minutos y solo sirve una vez.</p>
+              <button className="btn primary" disabled={pairBusy} onClick={()=>void newPairLink()}>{pairBusy?<Loader2 className="spin" size={17}/>:<QrCode size={17}/>} Crear enlace y QR de vinculación</button>
+              {pairLink&&<div className="pair-link-card"><div className="pair-qr"><QRCodeSVG value={pairLink} size={190} level="M" bgColor="#ffffff" fgColor="#0e2866"/></div><p>Escanea este QR con el otro dispositivo o copia el enlace privado.</p><div className="device-link-field"><input readOnly value={pairLink} aria-label="Enlace temporal de vinculación"/><button className="btn outline" onClick={()=>void copyLink(pairLink).then(()=>notify('Enlace privado copiado'))}><Copy size={16}/> Copiar</button></div><small>⚠️ Este enlace concede acceso para editar. Compártelo únicamente con personas de confianza.</small></div>}
+            </Card>
+          </div>
+          <Card className="sync-settings-card">
+            <h3><Users size={20}/> Dispositivos vinculados ({devices.length})</h3>
+            <p>Si deseas impedir que otro equipo siga editando, puedes revocarle el acceso desde el dispositivo principal.</p>
+            {devices.length===0?<p>Aún no hay dispositivos adicionales vinculados.</p>:<div className="devices-list">{devices.map((device,i)=><div className="linked-device-row" key={device.user_id}><div><strong>Dispositivo {i+2}</strong><small>Conectado: {compactDate(device.created_at)} · ID {device.user_id.slice(0,8)}</small></div>{currentDeviceId===data.event.owner_id&&<button className="btn outline" onClick={()=>void revokeDevice(device.user_id)}><X size={15}/> Revocar</button>}</div>)}</div>}
+          </Card>
+          <Card className="help-band"><ShieldCheck size={24}/><div><strong>Seguridad del panel</strong><p>El enlace permanente no desbloquea el panel por sí solo. Cada dispositivo nuevo debe vincularse desde uno que ya tenga acceso. Si borras los datos del navegador, necesitarás vincularlo nuevamente.</p></div></Card>
         </>}
         <div className="workspace-footer">EMILIANA & ALEJANDRA <span>✦</span> CREADO CON CARIÑO</div>
       </main>
     </div>
+    {qrGuest&&<div className="modal-back" onClick={()=>setQrGuest(null)}><div className="modal qr-modal" role="dialog" aria-modal="true" aria-label="Código QR de invitación" onClick={e=>e.stopPropagation()}>
+       <div className="modal-head"><div><div className="eyebrow">INVITACIÓN CON QR</div><h2>{qrGuest.name}</h2></div><button aria-label="Cerrar QR" onClick={()=>setQrGuest(null)}><X size={21}/></button></div>
+       <p className="qr-intro">Invitación personalizada para {qrGuest.name}. Incluye {qrGuest.seats} {qrGuest.seats===1?'cupo':'cupos'} y la confirmación de asistencia.</p>
+       <div id="guest-qr-svg" className="guest-qr-code"><QRCodeSVG value={linkFor(qrGuest)} size={240} level="M" bgColor="#fff" fgColor="#0d2562"/></div>
+       <div className="qr-link-short">{linkFor(qrGuest)}</div>
+       <div className="modal-actions"><button className="btn outline" onClick={()=>void copyLink(linkFor(qrGuest)).then(()=>notify('Enlace copiado'))}><Copy size={16}/> Copiar enlace</button><button className="btn primary" onClick={()=>downloadGuestQR(qrGuest)}><Download size={16}/> Descargar QR</button></div>
+     </div></div>}
     {guestEdit&&<GuestDialog initial={guestEdit} groups={data.groups} onClose={()=>setGuestEdit(null)} onSave={saveGuest} busy={working}/>}
     {groupEdit&&<GroupDialog initial={groupEdit} onClose={()=>setGroupEdit(null)} onSave={saveGroup} busy={working}/>}
     {notice&&<div className="toast" role="status"><Sparkles size={17}/>{notice}<button onClick={()=>setNotice('')}><X size={15}/></button></div>}
   </div>;
+}
+
+
+function DevicePairingGateway({onConnected}:{onConnected:()=>void}){
+  const getCode=()=>{
+    const query=location.hash.split('?')[1]||'';
+    return new URLSearchParams(query).get('pair')||'';
+  };
+  const [code,setCode]=useState(getCode());
+  const [busy,setBusy]=useState(false);
+  const [error,setError]=useState('');
+  const attempted=useRef(false);
+  const submit=async(value=code)=>{
+    if(busy)return;
+    setBusy(true);setError('');
+    try{
+      await claimPairingLink(value);
+      history.replaceState(null,'',settingsLink());
+      onConnected();
+    }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  };
+  useEffect(()=>{
+    const raw=getCode();
+    if(raw&&!attempted.current){attempted.current=true;void submit(raw)}
+  },[]);
+  return <div className="pair-gateway"><div className="pair-gateway-card">
+    <div className="brand-mark">EA<span>✦</span></div>
+    <span className="eyebrow">PANEL DE INVITACIONES</span>
+    <h1>Conecta este dispositivo</h1>
+    <p>Para consultar los mismos invitados y confirmaciones en este celular o computador, vincúlalo desde el panel que ya utilizas. <strong>No se creará un evento nuevo ni se borrarán los datos.</strong></p>
+    <label className="field"><span>Enlace privado o código de vinculación</span><input autoComplete="off" spellCheck={false} value={code} onChange={e=>setCode(e.target.value)} placeholder="Pega el enlace temporal recibido"/></label>
+    {error&&<div className="error-inline">{error}</div>}
+    <button className="btn primary full" disabled={busy||!code.trim()} onClick={()=>void submit()}>{busy?<Loader2 className="spin" size={18}/>:<ShieldCheck size={18}/>} Conectar al mismo panel</button>
+    <div className="pair-help"><strong>¿Dónde se obtiene el enlace?</strong><p>Abre el panel en tu dispositivo principal → Ajustes y dispositivos → Crear enlace y QR de vinculación. Caduca en 10 minutos y es de un solo uso.</p></div>
+    <p className="pair-security"><ShieldCheck size={17}/> Solo los dispositivos autorizados podrán editar. Los invitados accederán únicamente a sus propias invitaciones.</p>
+  </div></div>;
 }
 
 function Metric({label,value,icon,foot}:{label:string;value:number;icon:ReactNode;foot:string}){return <Card className="metric-card"><div className="metric-top"><span>{label}</span><div>{icon}</div></div><strong>{value}</strong><small>{foot}</small></Card>}
@@ -321,7 +445,7 @@ function PublicInvitation({data,demo=false,onBack}:{data:PublicInvite;demo?:bool
       <section className="invite-cover" ref={el=>{progressRef.current=el}}><Starfield count={48}/><FloatingDiplomas zone="cover"/><span className="cover-reveal-flare" aria-hidden="true"/><div className="cover-ring"/><div className="cover-orbit"/><div className="cover-caption">UNA NOCHE PARA CELEBRAR</div><div className="cover-crest">EA <span>✦</span></div><h1><em>Emiliana</em><span>&</span><em>Alejandra</em></h1><div className="cover-grades"><div><span>El gran paso</span><strong>5.º GRADO</strong></div><i>✧</i><div><span>Un nuevo comienzo</span><strong>11.º GRADO</strong></div></div><p>{event.message}</p><div className="guest-display"><small>INVITACIÓN ESPECIAL PARA</small><strong>{guest.name}</strong><span>{guest.seats} {guest.seats===1?'CUPO':'CUPOS'} RESERVADOS</span></div><GradCountdown date={event.date} compact/><a href="#nuestra-historia" className="explore-link">DESCUBRE NUESTRA HISTORIA <ArrowDown size={16}/></a></section>
       <section className="sisters-story" id="nuestra-historia"><FloatingDiplomas zone="story"/><div className="section-kicker">DOS HISTORIAS ENTRELAZADAS</div><h2>El principio de <em>nuevas aventuras</em></h2><p>Crecieron compartiendo risas, retos y sueños. Hoy celebramos dos etapas únicas que las llevarán aún más lejos.</p><div className="story-twins"><article><div className="twin-badge">05</div><GraduationCap size={31}/><h3>Emiliana</h3><span>Promoción de 5.º grado</span><p>Una nueva etapa comienza con curiosidad, alegría y muchas ilusiones.</p></article><div className="twin-divider">✦</div><article><div className="twin-badge">11</div><GraduationCap size={31}/><h3>Alejandra</h3><span>Promoción de grado 11</span><p>Un sueño se hace realidad y se abren las puertas a nuevos caminos.</p></article></div></section>
       <MemoryAlbum id="juntas" photos={event.galleries.juntas}/><MemoryAlbum id="emiliana" photos={event.galleries.emiliana}/><MemoryAlbum id="alejandra" photos={event.galleries.alejandra}/><MemoryAlbum id="familia" photos={event.galleries.familia}/>
-      <section className="invite-details"><div className="section-kicker">GUARDA ESTE MOMENTO</div><h2>Fecha, hora <em>y lugar</em></h2><div className="detail-boxes"><article><CalendarDays size={27}/><span>CUÁNDO CELEBRAMOS</span><h3>{dateLabel(event.date)}</h3></article><article><MapPin size={27}/><span>DÓNDE NOS VEREMOS</span><h3>{event.venue||'Por confirmar'}</h3><p>{event.address}</p>{event.maps_url&&checkLink(event.maps_url)&&<a href={event.maps_url} target="_blank" rel="noreferrer">Ver ubicación <ExternalLink size={15}/></a>}</article></div><GradCountdown date={event.date}/></section>
+      <section className="invite-details"><div className="section-kicker">GUARDA ESTE MOMENTO</div><h2>Fecha, hora <em>y lugar</em></h2><div className="detail-boxes"><article><CalendarDays size={27}/><span>CUÁNDO CELEBRAMOS</span><h3>{dateLabel(event.date)}</h3></article><article><MapPin size={27}/><span>DÓNDE NOS VEREMOS</span><h3>{event.venue||'Por confirmar'}</h3><p>{event.address}</p>{event.maps_url&&checkLink(event.maps_url)&&<a href={event.maps_url} target="_blank" rel="noreferrer">Ver ubicación <ExternalLink size={15}/></a>}</article></div></section>
       <section className="invite-rsvp"><div className="rsvp-decoration">✦</div><div className="section-kicker">QUEREMOS CELEBRAR CONTIGO</div><h2>Tu presencia hará este día <em>aún más especial</em></h2><p>Reserva tu lugar y confírmanos si nos acompañarás.</p>{saved?<div className="rsvp-success"><CheckCircle2 size={45}/><h3>¡Gracias por responder!</h3><p>Hemos recibido tu confirmación.</p></div>:<form className="rsvp-form" onSubmit={e=>void saveReply(e)}><label>Tu nombre<input value={guest.name} disabled/></label><div className="rsvp-choice"><button type="button" className={reply==='confirmada'?'selected':''} onClick={()=>setReply('confirmada')}><Heart size={18}/> ¡Sí, asistiré!</button><button type="button" className={reply==='no_asistira'?'selected':''} onClick={()=>setReply('no_asistira')}><X size={18}/> No podré asistir</button></div>{reply==='confirmada'&&<label>¿Cuántas personas asistirán? <select value={count} onChange={e=>setCount(Number(e.target.value))}>{Array.from({length:guest.seats},(_,i)=><option key={i+1} value={i+1}>{i+1} {i===0?'persona':'personas'}</option>)}</select><small>Tienes {guest.seats} {guest.seats===1?'cupo disponible':'cupos disponibles'}.</small></label>}<label>Mensaje para las graduandas (opcional)<textarea rows={3} value={text} maxLength={1000} onChange={e=>setText(e.target.value)} placeholder="¡Muchas felicidades!"/></label>{err&&<div className="error-inline">{err}</div>}<button className="btn rsvp-submit" disabled={sending}>{sending?<Loader2 size={16} className="spin"/>:<Send size={17}/>} Confirmar mi respuesta</button></form>}<div className="rsvp-ending">{event.closing}<br/><em>Con cariño, Emiliana y Alejandra</em></div></section>
       <footer className="invite-footer">E <span>✦</span> A · DOS SUEÑOS, UNA CELEBRACIÓN{total>0&&<small>{total} recuerdos para atesorar</small>}</footer>
     </>}
