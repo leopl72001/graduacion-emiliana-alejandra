@@ -40,6 +40,7 @@ create table if not exists public.sisters_guests (
   group_id uuid references public.sisters_groups(id) on delete set null,
   name text not null,
   seats integer not null default 1 check(seats between 1 and 50),
+  show_seats boolean not null default false,
   phone text not null default '',
   share_token text not null unique check(length(share_token)=64),
   sent boolean not null default false,
@@ -112,7 +113,7 @@ begin
   return jsonb_build_object(
     'event',to_jsonb(e)-'owner_id'-'created_at',
     'guest',jsonb_build_object('id',g.id,'event_id',g.event_id,'group_id',g.group_id,
-      'name',g.name,'seats',g.seats,'share_token',g.share_token,'status',g.status,
+      'name',g.name,'seats',g.seats,'show_seats',g.show_seats,'share_token',g.share_token,'status',g.status,
       'attending_count',g.attending_count,'message',g.message,'sent',g.sent,
       'sent_at',g.sent_at,'created_at',g.created_at,'phone',''),
     'group_name',coalesce(gr.name,''),

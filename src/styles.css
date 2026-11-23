@@ -273,3 +273,10 @@
   body:has(.qr-modal) .qr-modal{box-shadow:none;border:0}
   body:has(.qr-modal) .qr-modal button{display:none!important}
 }
+
+/* Permite ocultar los cupos en cada invitación, sin perder su control interno. */
+.guest-seat-visibility{border:1px solid #d8e2f4;border-radius:12px;padding:14px 16px;background:#f5f8ff}
+.guest-visibility-choice{display:flex;align-items:center;gap:11px;font-weight:700;color:#20376f;cursor:pointer}
+.guest-visibility-choice input{width:19px;height:19px;flex:none;accent-color:#1d4faa;cursor:pointer}
+.guest-seat-visibility small{display:block;font-size:12px;line-height:1.5;color:#6e809d;margin-top:6px;padding-left:30px}
+.seat-visibility-hint{display:block;color:#7b8bad;font-size:11px;margin-top:3px}

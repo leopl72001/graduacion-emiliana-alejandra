@@ -130,12 +130,15 @@ export async function upload(file:File,eventId:string):Promise<string>{
   return supabase.storage.from('sisters-assets').getPublicUrl(path).data.publicUrl;
 }
 export function newGuest(eventId:string,groupId:string|null=null):Guest{
-  return {id:gid(),event_id:eventId,group_id:groupId,name:'',seats:1,phone:'',share_token:token(),sent:false,sent_at:null,status:'pendiente',attending_count:0,message:'',created_at:new Date().toISOString()};
+  return {id:gid(),event_id:eventId,group_id:groupId,name:'',seats:1,show_seats:false,phone:'',share_token:token(),sent:false,sent_at:null,status:'pendiente',attending_count:0,message:'',created_at:new Date().toISOString()};
 }
 export function newGroup(eventId:string):Group{return {id:gid(),event_id:eventId,name:'',track:'general',default_seats:2}}
 export function linkFor(guest:Guest){return `${location.origin}${import.meta.env.BASE_URL}#/invitacion/${guest.share_token}`}
 export function whatsappFor(guest:Guest){
-  const text=`🎓 ¡Tienes una invitación especial, ${guest.name}!\n\nEmiliana se gradúa de 5.º y Alejandra de 11.º. Queremos compartir contigo este día tan especial.\n\nTu invitación es personal e incluye ${guest.seats} ${guest.seats===1?'cupo':'cupos'}.\n\n💙 Abre tu invitación aquí:\n${linkFor(guest)}`;
+  const guestLine=guest.show_seats
+    ? `Esta invitación es personal e incluye ${guest.seats} ${guest.seats===1?'cupo':'cupos'}.`
+    : 'Esta invitación es personal y fue preparada especialmente para ti.';
+  const text=`🎓 ¡Tienes una invitación especial, ${guest.name}!\n\nEmiliana se gradúa de 5.º y Alejandra de 11.º. Queremos compartir contigo este día tan especial.\n\n${guestLine}\n\n💙 Abre tu invitación aquí:\n${linkFor(guest)}`;
   return `https://wa.me/${guest.phone.replace(/\D/g,'')}?text=${encodeURIComponent(text)}`.replace('https://wa.me/?','https://wa.me/?');
 }
 export function pushPhoto(d:Dashboard,albumId:keyof EventData['galleries'],item:Photo):Dashboard{

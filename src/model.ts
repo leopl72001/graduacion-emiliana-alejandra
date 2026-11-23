@@ -29,7 +29,7 @@ export interface EventData {
 }
 export interface Group {id:string;event_id:string;name:string;track:TrackId;default_seats:number;}
 export interface Guest {
-  id:string;event_id:string;group_id:string|null;name:string;seats:number;phone:string;
+  id:string;event_id:string;group_id:string|null;name:string;seats:number;show_seats:boolean;phone:string;
   share_token:string;sent:boolean;sent_at:string|null;status:RSVP;
   attending_count:number;message:string;created_at:string;
 }
